@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>I love you ❤</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      background-color: black;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    #heartText {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+      font-family: 'Courier New', Courier, monospace;
+      z-index: 2;
+      pointer-events: none;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      #heartText {
+        font-size: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="heartText"></div>
+  <canvas id="heart"></canvas>
+
+  <script>
+    const text = "Tamara";
+    const heartText = document.getElementById("heartText");
+
+    function typeText(text, target, delay = 700) {
+      target.textContent = "";
+      for (let i = 0; i < text.length; i++) {
+        setTimeout(() => {
+          target.textContent += text[i];
+        }, delay * i);
+      }
+    }
+
+    typeText(text, heartText);
+
+    window.requestAnimationFrame = window.requestAnimationFrame || function (cb) { return setTimeout(cb, 1000 / 60); };
+
+    window.isDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+      (navigator.userAgent || navigator.vendor || window.opera).toLowerCase()
+    );
+
+    let canvas, ctx, width, height;
+    let pointsOrigin = [], targetPoints = [], e = [];
+    let tracecount, heatPointsCount;
+    const random = Math.random;
+
+    function heartPosition(rad) {
+      return [
+        Math.pow(Math.sin(rad), 3),
+        -(15 * Math.cos(rad) - 5 * Math.cos(2 * rad) - 2 * Math.cos(3 * rad) - Math.cos(4 * rad))
+      ];
+    }
+
+    function scaleAndTranslate(pos, sx, sy, dx, dy) {
+      return [dx + pos[0] * sx, dy + pos[1] * sy];
+    }
+
+    function pulse(kx, ky) {
+      for (let i = 0; i < pointsOrigin.length; i++) {
+        targetPoints[i] = [
+          kx * pointsOrigin[i][0] + width / 2,
+          ky * pointsOrigin[i][1] + height / 2.2
+        ];
+      }
+    }
+
+    function init() {
+      const mobile = window.isDevice;
+      const dpr = window.devicePixelRatio || 1;
+      const koef = mobile ? 0.5 : 1;
+
+      canvas = document.getElementById('heart');
+      ctx = canvas.getContext('2d');
+
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+
+      width = canvas.width / dpr;
+      height = canvas.height / dpr;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+      ctx.fillRect(0, 0, width, height);
+
+      pointsOrigin = [];
+      targetPoints = [];
+      e = [];
+
+      const dr = mobile ? 0.3 : 0.1;
+      for (let i = 0; i < Math.PI * 2; i += dr)
+        pointsOrigin.push(scaleAndTranslate(heartPosition(i), 310, 19, 0, 0));
+      for (let i = 0; i < Math.PI * 2; i += dr)
+        pointsOrigin.push(scaleAndTranslate(heartPosition(i), 250, 15, 0, 0));
+      for (let i = 0; i < Math.PI * 2; i += dr)
+        pointsOrigin.push(scaleAndTranslate(heartPosition(i), 190, 11, 0, 0));
+
+      heatPointsCount = pointsOrigin.length;
+      tracecount = mobile ? 20 : 50;
+
+      for (let i = 0; i < heatPointsCount; i++) {
+        const x = random() * width;
+        const y = random() * height;
+        e[i] = {
+          vx: 0,
+          vy: 0,
+          R: 2,
+          speed: random() + 5,
+          q: ~~(random() * heatPointsCount),
+          D: 2 * (i % 2) - 1,
+          farce: 0.2 * random() + 0.7,
+          f: "rgba(255, 0, 0, 0.7)", // Qırmızı
+          trace: Array.from({ length: tracecount }, () => ({ x, y }))
+        };
+      }
+
+      window.addEventListener("resize", () => {
+        init(); // Ekran dəyişəndə yenidən qur
+      });
+
+      pulse(1, 1);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      ctx.fillStyle = "rgba(0,0,0,0.1)";
+      ctx.fillRect(0, 0, width, height);
+
+      for (let i = e.length; i--;) {
+        let u = e[i], q = targetPoints[u.q];
+        let dx = u.trace[0].x - q[0];
+        let dy = u.trace[0].y - q[1];
+        let d = Math.sqrt(dx * dx + dy * dy);
+
+        if (10 > d) {
+          if (0.95 < random()) {
+            u.q = ~~(random() * heatPointsCount);
+          } else {
+            if (0.99 < random()) {
+              u.D *= -1;
+            }
+            u.q += u.D;
+            u.q = (u.q + heatPointsCount) % heatPointsCount;
+          }
+        }
+
+        u.vx += (-dx / d) * u.speed;
+        u.vy += (-dy / d) * u.speed;
+        u.trace[0].x += u.vx;
+        u.trace[0].y += u.vy;
+        u.vx *= u.farce;
+        u.vy *= u.farce;
+
+        for (let k = 0; k < u.trace.length - 1;) {
+          let T = u.trace[k];
+          let N = u.trace[++k];
+          N.x -= (N.x - T.x) * 0.3;
+          N.y -= (N.y - T.y) * 0.3;
+        }
+
+        ctx.beginPath();
+        ctx.fillStyle = u.f;
+        ctx.arc(u.trace[0].x, u.trace[0].y, u.R, 0, Math.PI * 2);
+        ctx.fill();
+
+        for (let k = 0; k < u.trace.length; k++) {
+          ctx.beginPath();
+          ctx.fillStyle = u.f.replace("0.7", String(0.7 * (1 - k / u.trace.length)));
+          ctx.arc(u.trace[k].x, u.trace[k].y, u.R, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    window.onload = () => {
+      init();
+      animate();
+    };
+  </script>
+</body>
+</html>
